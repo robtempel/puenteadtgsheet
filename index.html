@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Convertidor CSV a Google Sheets</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; text-align: center; background: #f4f4f9; }
+    #drop-zone {
+      border: 3px dashed #007bff;
+      border-radius: 10px;
+      padding: 60px;
+      background: #ffffff;
+      color: #007bff;
+      font-weight: bold;
+      font-size: 18px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    #drop-zone.hover { background: #e6f2ff; }
+    /* Textarea oculto necesario para forzar la copia automática en los navegadores */
+    #copia-invisible { position: absolute; left: -9999px; }
+    #mensaje { font-size: 18px; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h2>Convertidor automático de CSV para Google Sheets</h2>
+  <div id="drop-zone">📂 Arrastrá y soltá tu archivo .CSV acá</div>
+  
+  <!-- Textarea oculto para el volcado automático -->
+  <textarea id="copia-invisible"></textarea>
+  
+  <p id="mensaje" style="color: #666;">Esperando archivo...</p>
+
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const mensaje = document.getElementById('mensaje');
+    const textareaInvisible = document.getElementById('copia-invisible');
+
+    // Prevenir comportamientos por defecto del navegador al arrastrar archivos
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => e.preventDefault());
+    });
+
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('hover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+
+    // Capturar el archivo al soltarlo y procesarlo de inmediato
+    dropZone.addEventListener('drop', (e) => {
+      dropZone.classList.remove('hover');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        procesarYCopiarCSV(files[0]);
+      }
+    });
+
+    function procesarYCopiarCSV(file) {
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        const contenido = e.target.result;
+        
+        // Reemplazar delimitadores por tabulaciones para Google Sheets
+        const lineas = contenido.split(/\r?\n/);
+        const lineasFormateadas = lineas.map(linea => {
+          return linea.replace(/;/g, '\t').replace(/,/g, '\t'); 
+        });
+
+        const textoFormateado = lineasFormateadas.join('\n');
+        
+        // Inyectar el texto en el textarea oculto, seleccionarlo y copiarlo
+        textareaInvisible.value = textoFormateado;
+        textareaInvisible.select();
+        
+        try {
+          const copiadoExitoso = document.execCommand('copy');
+          if (copiadoExitoso) {
+            mensaje.style.color = "#28a745";
+            mensaje.innerText = "✅ ¡Listo! Datos copiados automáticamente. Andá a Google Sheets y presioná Ctrl + V";
+          } else {
+            throw new Error();
+          }
+        } catch (err) {
+          mensaje.style.color = "#dc3545";
+          mensaje.innerText = "❌ No se pudo copiar automáticamente. Copiá el contenido manualmente.";
+        }
+      };
+
+      reader.readAsText(file);
+    }
+  </script>
+
+</body>
+</html>
