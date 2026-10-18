@@ -2,88 +2,91 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>ADT >> Google Sheet</title>
+  <title>Convertidor CSV a Google Sheets</title>
   <style>
-    body { font-family: sans-serif; padding: 20px; text-align: center; background: #f4f4f9; }
+    body { font-family: sans-serif; padding: 40px; text-align: center; background: #f4f4f9; }
     #drop-zone {
-      width: 300px;
-      height: 300px;
-      margin-left: auto;
-      margin-right: auto;
       border: 3px dashed #007bff;
       border-radius: 10px;
-      padding: 40px;
+      padding: 60px;
       background: #ffffff;
       color: #007bff;
       font-weight: bold;
+      font-size: 18px;
       cursor: pointer;
       margin-bottom: 20px;
     }
     #drop-zone.hover { background: #e6f2ff; }
-    textarea {width: 100%; height: 200px; margin-bottom: 300px; }
-    button {padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    /* Textarea oculto necesario para forzar la copia automática en los navegadores */
+    #copia-invisible { position: absolute; left: -9999px; }
+    #mensaje { font-size: 18px; font-weight: bold; margin-top: 20px; }
   </style>
 </head>
 <body>
 
-  <h2>Convertidor de CSV a Google Sheet</h2>
-  <h2>Desde ADT generar un archivo .CSV que contenga los eventos</h2>
-  <div id="drop-zone">Arrastrá y soltá el archivo .CSV acá</div>
+  <h2>Convertidor automático de CSV para Google Sheets</h2>
+  <div id="drop-zone">📂 Arrastrá y soltá tu archivo .CSV acá</div>
   
-  <button id="btn-copiar" style="display:none;" onclick="copiarAlPortapapeles()">📋 Copiar datos para Google Sheets</button>
-  <p id="mensaje" style="color: green; font-weight: bold;"></p>
+  <!-- Textarea oculto para el volcado automático -->
+  <textarea id="copia-invisible"></textarea>
+  
+  <p id="mensaje" style="color: #666;">Esperando archivo...</p>
 
   <script>
     const dropZone = document.getElementById('drop-zone');
-    const btnCopiar = document.getElementById('btn-copiar');
     const mensaje = document.getElementById('mensaje');
-    let textoFormateado = "";
+    const textareaInvisible = document.getElementById('copia-invisible');
 
     // Prevenir comportamientos por defecto del navegador al arrastrar archivos
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropZone.addEventListener(eventName, e => e.preventDefault());
     });
 
-    // Feedback visual
     dropZone.addEventListener('dragover', () => dropZone.classList.add('hover'));
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
 
-    // Capturar el archivo al soltarlo
+    // Capturar el archivo al soltarlo y procesarlo de inmediato
     dropZone.addEventListener('drop', (e) => {
       dropZone.classList.remove('hover');
       const files = e.dataTransfer.files;
       if (files.length > 0) {
-        procesarCSV(files[0]);
+        procesarYCopiarCSV(files[0]);
       }
     });
 
-    function procesarCSV(file) {
+    function procesarYCopiarCSV(file) {
       const reader = new FileReader();
       
       reader.onload = function(e) {
         const contenido = e.target.result;
         
-        // Detectar si el CSV usa comas (,) o punto y coma (;) como delimitador
-        // Reemplazamos los separadores por tabulaciones '\t' que es lo que Sheets entiende como cambio de celda
+        // Reemplazar delimitadores por tabulaciones para Google Sheets
         const lineas = contenido.split(/\r?\n/);
         const lineasFormateadas = lineas.map(linea => {
-          // Si tu intranet exporta con comas o punto y coma, ajustás el replace
           return linea.replace(/;/g, '\t').replace(/,/g, '\t'); 
         });
 
-        textoFormateado = lineasFormateadas.join('\n');
+        const textoFormateado = lineasFormateadas.join('\n');
         
-        btnCopiar.style.display = 'inline-block';
-        mensaje.innerText = "¡Archivo procesado! Hacé clic en el botón de abajo para copiar.";
+        // Inyectar el texto en el textarea oculto, seleccionarlo y copiarlo
+        textareaInvisible.value = textoFormateado;
+        textareaInvisible.select();
+        
+        try {
+          const copiadoExitoso = document.execCommand('copy');
+          if (copiadoExitoso) {
+            mensaje.style.color = "#28a745";
+            mensaje.innerText = "✅ ¡Listo! Datos copiados automáticamente. Andá a Google Sheets y presioná Ctrl + V";
+          } else {
+            throw new Error();
+          }
+        } catch (err) {
+          mensaje.style.color = "#dc3545";
+          mensaje.innerText = "❌ No se pudo copiar automáticamente. Copiá el contenido manualmente.";
+        }
       };
 
       reader.readAsText(file);
-    }
-
-    function copiarAlPortapapeles() {
-      navigator.clipboard.writeText(textoFormateado).then(() => {
-        mensaje.innerText = "✅ ¡Datos copiados! Ahora andá a Google Sheets y presioná Ctrl + V en la primera celda.";
-      });
     }
   </script>
 
